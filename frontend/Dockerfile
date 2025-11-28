@@ -1,0 +1,13 @@
+# Step 1: Build Angular app
+FROM node:18 AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build --prod
+
+# Step 2: Serve with Nginx
+FROM nginx:latest
+COPY --from=build /app/dist/angular-15-crud /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
