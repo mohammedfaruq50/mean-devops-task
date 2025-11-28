@@ -10,55 +10,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout repo
-    - name: Checkout Repo
-      uses: actions/checkout@v3
+      # 1️⃣ Checkout repo
+      - name: Checkout Repo
+        uses: actions/checkout@v3
 
-    # 2️⃣ Log in to Docker Hub
-    - name: Login to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      # 2️⃣ Log in to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-    # 3️⃣ Build & push backend image
-    - name: Build and push backend
-      run: |
-        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest ./backend
-        docker push ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
+      # 3️⃣ Build & push backend image
+      - name: Build and push backend
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest ./backend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
 
-    # 4️⃣ Build & push frontend image
-    - name: Build and push frontend
-      run: |
-        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest ./frontend
-        docker push ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
+      # 4️⃣ Build & push frontend image
+      - name: Build and push frontend
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest ./frontend
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
 
-    # 5️⃣ SSH into VM and update containers
-    - name: Deploy to VM
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.VM_HOST }}
-        username: ${{ secrets.VM_USER }}
-        key: ${{ secrets.VM_SSH_KEY }}
-        port: 22
-        script: |
-          set -e  # Exit if any command fails
+      # 5️⃣ SSH into VM and update containers
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: 22
+          script: |
+            # Stop existing containers
+            docker stop frontend backend || true
+            docker rm frontend backend || true
 
-          # Ensure Docker is installed
-          if ! command -v docker &> /dev/null
-          then
-              echo "Docker not found! Exiting."
-              exit 1
-          fi
+            # Pull latest images
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
 
-          # Stop & remove existing containers
-          docker stop frontend backend || true
-          docker rm frontend backend || true
-
-          # Pull latest Docker images
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
-
-          # Run backend & frontend containers
-          docker run -d --name backend -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
-          docker run -d --name frontend -p 3000:80 ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
+            # Run containers
+            docker run -d --name backend -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
+            docker run -d --name frontend -p 3000:80 ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
