@@ -40,15 +40,25 @@ jobs:
         host: ${{ secrets.VM_HOST }}
         username: ${{ secrets.VM_USER }}
         key: ${{ secrets.VM_SSH_KEY }}
+        port: 22
         script: |
-          # Stop existing containers
+          set -e  # Exit if any command fails
+
+          # Ensure Docker is installed
+          if ! command -v docker &> /dev/null
+          then
+              echo "Docker not found! Exiting."
+              exit 1
+          fi
+
+          # Stop & remove existing containers
           docker stop frontend backend || true
           docker rm frontend backend || true
 
-          # Pull latest images
+          # Pull latest Docker images
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
           docker pull ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
 
-          # Run containers
+          # Run backend & frontend containers
           docker run -d --name backend -p 8080:8080 ${{ secrets.DOCKERHUB_USERNAME }}/mean-backend:latest
           docker run -d --name frontend -p 3000:80 ${{ secrets.DOCKERHUB_USERNAME }}/mean-frontend:latest
